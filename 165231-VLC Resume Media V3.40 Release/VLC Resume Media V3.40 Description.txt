@@ -1,0 +1,410 @@
+--                 Resume Media Version 3.40
+--        VLC Lua Extension by Rocky Dotterer 5/5/2014
+--     Last update 9/24/2015 (see change log further down)
+
+
+-------- user adjustable variables (please use caution!) --------------
+-- If you are reading this in the Resume Media....lua file, then
+-- changing "simple" or "filename" here will affect the program.
+
+simple = false   -- Set true for simple resume feature. This was
+                 -- most useful before VLC 2.2 had a resume feature.
+                 -- Resume Media will start with single table and no 
+                 -- dialog window. Resume positions will be added or
+                 -- updated in the table, applied when media replayed,
+                 -- and deleted when media finished.
+
+filename = ""    -- change if you want data files in your own directory.
+                 -- example for full path filename (must end in .txt) 
+-- Windows: filename = "D:\\Video\\VLC Resume Media\\Resume Media.txt"
+-- Linux: filename = "<homedir>/Video/VLC Resume Media/Resume Media.txt"
+                 -- the directory must exist and not be write protected
+
+limtables = 50   -- Maximum allowed number of tables (be careful)
+autosegs = true  -- set false to prevent search for segments in metadata.
+allowosx = false -- set true to experiment with display parameters in osx
+                 -- the lua runtime for osx has issues and needs fixing.
+                 -- the osx display function further down is osx_display()
+-----------------------------------------------------------------------
+
+--[[       please don't change anything below this line
+
+~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+Resume Media displays the saved positions of all media as well as a
+bookmark where last played in each table. Media segments can be 
+defined without editing your file allowing you to watch or listen 
+to your favorite parts. Media can be automatically added or removed 
+from a table when the media stops or finishes. Old-style tv video 
+ratios can be adjusted without going to the VLC menu each time. 
+There are fun settings to sample media for a number of seconds or 
+play at different speeds. And more...
+~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+A table can be used as a playlist for, say, a tv series or a music
+album. The resume feature then allows you to play and stop and
+quickly resume whichever entries interest you at the time until you
+have finally completed the list. Sort the list to see which entries
+you have started.
+
+Great for audio books that you have transferred to your storage in
+chapters. Never lose your place. Adjust 'rewind' time to your liking
+to help re-sync your memory with the story. Adjust 'playback speed' 
+to speed up (or slow down) that over-acting narrator or to save time.
+
+Use the segments feature to tag the highlights of a family video.
+Then go to the segments list to play whichever highlights that 
+friends and relatives are leaning over your shoulder to see.
+
+You can import and save top level playlists or directories into
+a table. Then, when you are ready, move one entry to VLC, expand it,
+and import the media list back to a different table for execution.
+
+Bookmark features:
+The playing media is bookmarked with an '*' symbol.
+When finished, the bookmark advances to the next unfinished media.
+If all media finished, the bookmark increments to the next media.
+There's a convenient button to play the bookmark where you left off.
+Play unfinished or whole table with options to randomize and loop.
+
+Installation:
+* Designed in Windows. Mostly works in Linux. Does not work in OSX.
+See "Mac Attack" and "Licking Linux" near the end of the description.
+* If this version is not available in the VLC Addons Manager, you can
+install it manually from this Addons site. Open zip file, copy the lua
+file to C:\Users\%UserName%\AppData\Roaming\vlc\lua\extensions
+or %homedir%/.local/share/vlc/lua/extensions/ for Linux (unhide .local)
+Create ..\lua\extensions directory if necessary. Delete old versions.
+When installed, restart VLC and check 'Resume Media' in View menu.
+(Extensions must be checked each time VLC is opened. It's OK...)
+* A Command prompt window will flash in Windows the first time only
+to create the data directory ..\vlc\VLC Resume Media\.
+
+Detailed Features and Notes (this acts as the help reference):
+Note: The [Play/Options] menu changes while VLC playlist is playing.
+* If the VLC playlist is stopped (not playing), then you can click
+[Play/Options] > [Add VLC] to add the VLC playlist to current table.
+* If the VLC playlist is playing (or paused), then you can click
+[Play/Options] > [Position] to add the playing media to the table.
+* There's a setting to allow automatic new entries when media stops.
+* Click [Play/Options] > [Settings] to access the settings table.
+* There is a media-just-started tolerance of 60 seconds, so you have
+60 seconds to sample media without saving the stop position.
+* When resuming, position will rewind 5 seconds from saved position.
+* Settings 'media-just-started' and 'rewind' are adjustable.
+* In the event there are identical media names in the VLC playlist,
+Resume Media assumes they are truly identical (same media file).
+* There's a setting to allow automatic new entries when media stops.
+* Operations are performed on current table. Switching tables while
+media playing causes the stop position to be updated in the new table.
+* Marking a table with '*' will remove media from table when finished.
+* The number of tables is adjustable from 1 to 50 tables.
+* Higher tables are not deleted when the number of tables is lowered.
+* To delete a table datafile, remove all contents and remove mark '*'.
+* Combining tables saves the highest position of duplicate entries.
+* When sorting by time, 'Finished' media will always be at the bottom.
+* You can set media saved positions to 'hh:mm:ss' or to 'Finished'.
+* 'Finished' media will not update position unless reset to 'hh:mm:ss'.
+* 'Finished' media will remain in any table when replayed to the end.
+* You can backup your tables if needed by copying the data directory.
+(In the data directory, the table # in each file is the file # plus 1)
+
+Non-media table entries (i.e. directories or playlists) are very
+useful for making convenient tables of playlists. Note that the saved
+position and bookmark are meaningless for these files and do not
+respond as expected.
+
+The occasional user who might open two instances of Resume Media in
+two instances of VLC must switch to different tables so that the
+instances do not overwrite each other's tables.
+
+Tables are backed up before a session starts. If you make undesirable
+changes and need to restore a table, then go to [Settings] and enter:
+"restore t1" | "restore t1 t2" | "restore all" , where
+t1 = table to restore, t2 = alternate destination, all = all tables.
+
+--- Keys ------------------------------------------------------------
+There are three "Key=Value" parameters which can be set for each
+media in any table. The two picture keys are described in the Picture
+section following this and apply to video only. The third key is:
+
+RMP=% where % is the percent playback speed for video or audio.
+A reasonable range for % is 25 to 300 and the default is RMP=100
+The motivation for adding the speed key is to allow up or dowm tuning
+of an instumental audio to sync it with a live instrument performance.
+(See Pitch setting in the Fun Settings section further down.)
+* If the Playback Speed setting in the Settings table is set to other
+than 100 (also see Fun Settings) then that speed setting overrides the 
+individual RMP speed keys for each media.
+
+--- Setting the keys ---
+While a media is playing (or paused), go to: 
+[Play/Options] > [Keys] to set the keys for media in the current table.
+* Spaces are not allowed in "Key=Value".
+* To delete a key, enter "Key=" (no value) or remove "Key=" altogether.
+* To delete all keys, clear the input line.
+* There is one level of [Undo], then [Cancel] will reset the keys to 
+the values before [Keys] was pressed.
+* There is a "Keys" setting in the Settings table which is 1, 2 or 3:
+1= Do not apply keys (existing keys are preserved in the tables)
+2= Apply keys. Also, when in the [Keys] input screen, corresponding 
+keys which have been placed in the playing media's metadata (explained
+further down) will be read from the metadata and placed in the input
+box to allow easy "manual" entry of the key values into the table.
+3= Apply keys. Also, corresponding keys which have been placed in
+the playing media's metadata will be read from the metadata and 
+"automatically" entered into the table for that media.
+Note: It may take several plays to successfully read the metadata.
+
+--- Putting keys in media file metadata ---
+You can place keys (ex. RMP=102) in a media file's metadata comments 
+section to save the keys with the media file when not in a table. 
+* Changing metadata is easier in Windows. Go to Properties> Details>
+Comments. If you select a group of similar files, you can change them
+all at once. Remove write-protection first.
+* When in the [Keys] or [Segments] screen, you can enter "getallkeys"
+in the input line to retrieve all keys (including segment keys) into
+the input line for easy transfer to a file's metadata comments section.
+* Segments are also keys, but their structure is normally hidden.
+Be careful when including segment keys in the metadata, since they can
+be long. The limit using Windows properties is ~255 characters.
+(Be careful changing metadata using VLC. I have seen media corrupted.)
+----------------------------------------------------------------------
+
+--- Picture Adjustment -----------------------------------------------
+Users with videos or tv recordings that need picture adjustment might 
+be tired of manually adjusting the picture in VLC each time they play.
+There are Resume Media keys to adjust aspect-ratio and crop values
+automatically while a video is playing.
+* Picture keys are RMA=nn:mm and RMC=nn:mm where nn:mm are ratios.
+(Ex. RMA=16:11 might make a boxy tv video aspect-ratio more appealing.)
+* See the Keys section above to enter keys into the table.
+* For technical reasons, application of picture keys is limited to 
+single selection plays initiated from any one of the Resume Media play
+options. Multiple selections will play normally. Since videos are
+usually long, playing one at a time should not be an issue.
+----------------------------------------------------------------------
+
+--- Segmenting -------------------------------------------------------
+Segmenting of media allows you to set start and stop times and name
+the segments for any media (usually video, but audio also). Resume
+Media will play the segments while ignoring the other parts.
+
+* Go to the Resume Media Settings and allow segmenting of media.
+* Play any media in the current Resume Media table. (Pausing is ok,
+since a paused media is still considered to be 'playing'.)
+* Now click [Play/Options] > [Segments] to prepare to edit segments.
+* Click [Get] without selection to add media position to the input box.
+With a selection, [Get] will load existing segment into the input box.
+* Segment elements are [start stop name]. Get a start and stop time,
+add an optional name, click [Save]. Save order is based on start time.
+- The start/stop times will be switched if they are out of order.
+- Type 'end' instead of a time to indicate play to end of media.
+- The segment name cannot contain parentheses, "(" or ")".
+* You can [Delete] unwanted segments.
+
+--- Notes ---
+* Segment play is limited to single plays initiated from Resume Media.
+Multiple selections will play normally without segments.
+* Setting mousewheel to position control in VLC Hotkey Preferences
+can make locating start and stop times more convenient.
+* There is a Resume Media setting to set the VLC Fullscreen setting.
+Use this to keep segment play in a window or fullscreen. An alternate
+Fullscreen setting in the VLC Video Menu lasts for one VLC session.
+* For consistant window viewing, you might want to consider unchecking
+'Resize Interface to Video size' in VLC Interface Preferences.
+* By default, the media name will show on a video at the beginning of
+each segment. There is a VLC Video Preference setting to turn that off.
+
+*** A little narrative to help explain segmenting ***
+
+When a segmented media is played by itself from Resume Media, an
+attempt is made to make the segments behave like a single file. The
+segments will play in order and then the media will be marked finished.
+The media can be stopped and resumed in any segment. You can click
+later in the time line and Resume Media will play the segment closest
+to the time clicked. Clicking past the last segment will finish media.
+If [^Loopv] selected in [Play More] then the segments will loop.
+
+Note: Resume Media cannot detect if you click earlier on the time line,
+so the media will just play from there until it hits the end time of
+the segment it was playing. Resume Media can detect When you click 
+past the segment end time and thereby decide what should be done next.
+Clicking Play in VLC instead of Resume Media will not play segments.
+
+While the segmented media is playing, you can go to the segment list.
+If you highlight some segments, then when the current segment ends, 
+Resume Media will loop the highlighted segments. This allows you to
+dynamically choose which segments will play. Also, clicking later in
+the time line (past the segment end) will play the next highlighted
+segment instead of the one closest to the time clicked, thus allowing 
+you to jump through the highlighted segments. When there are no
+highlights or you exit from the segment list, segments play normally.
+Be careful not to click [Delete] when segments are highlighted.
+----------------------------------------------------------------------
+
+--- Fun Settings -----------------------------------------------------
+* "Run time" lets you sample all media for a set number of seconds.
+* "Start time" lets you start further into the media. A saved position
+will override this value.
+* "Playback speed" lets you, say, listen to an audio book faster or
+have fun with a video, etc.
+* Pitch setting allows the audio pitch to vary or be unaffected when
+playback speed is varied. Allows tuning of instrumental audio media.
+* Loop setting allows automatic looping when playing from Resume Media.
+
+Ex. Set "Run time" to 5 or 10 and "Playback speed" to 150 to help find
+that one song or piano piece out of a 100 you are looking for.
+(Use saved positions combined with "Run time" for deep sampling.)
+
+These settings apply to all media while Resume Media open. Have fun!
+----------------------------------------------------------------------
+
+--- Mac Attack -------------------------------------------------------
+OSX seems to render a dialog window much more loosely and dynamically.
+The dialog window starts out large and gets longer with each operation.
+
+The 'growing list' behavior in OSX has been submitted as a defect to
+the VLC developers, and accepted. There hasn't been any movement on
+fixing issue this since 4/27. The VLC team needs programmers to help.
+
+When (if) the "growing list" issue is fixed, I will continue to work
+to make Resume Media for OSX possible.
+----------------------------------------------------------------------
+  
+--- Licking Linux ----------------------------------------------------  
+Everything seems to work properly in Linus except segmenting.
+
+Segments do not transition properly in Linux. Leave segmenting off.
+I will work to fix this issue. Please let me know if there are
+other repeatable issues that you would like me to address. Thanks.
+----------------------------------------------------------------------  
+  
+--- Changelog --------------------------------------------------------
+2015-09-24 V3.40
+Detect XP in addition to later Windows
+Setting to show/hide playlist control buttons in Resume Media.
+Setting to always loop selections played from Resume Media.
+Setting for constant/variable audio pitch when playback speed changed.
+Added key to allow individual media playback speeds.
+2015-07-14 V3.38
+Fix button-click function re-entry issue for Linux
+2015-07-10 V3.37
+Now operating system aware. Mostly works in Linux but not in OSX.
+Table data moved to "VLC Resume Media" directory in the vlc directory.
+Tables backed up before a session and restorable during a session.
+2015-07-01 V3.36
+Correct media finished flag in segment play
+2015-06-30 V3.35
+Correct looping issue in segment play
+2015-06-30 V3.34
+Correct 'run-time' setting behavior.
+Segment play order now correct if segments should happen to overlap.
+2015-06-18 V3.33
+Segments can be dynamically selected for play in the segments list
+2015-06-12 V3.32
+Improve some behaviors.
+2015-05-31 V3.31
+Correct label in table view.
+2015-05-31 V3.30
+Reverse default table behavior to not automatically add/delete media.
+Settings can be changed as needed to automate add/delete behavior.
+2015-05-28 V3.30 beta1 55803
+Introduction of media segmenting.
+2015-05-27 V3.23 55668
+Correct picture key handling when table order changes.
+2015-03-13 V3.22 50813
+Use the input box to set picture keys, saved positions and settings.
+Change to picture-adjust keys only allowed when video playing.
+Setting to suppress automatic new table entry when media stops.
+2015-03-24 V3.21 47979
+"Playback speed" can now be set without restarting VLC
+2015-03-17 V3.20 46639
+New settings for "start time", "run time" and "playback speed"
+2015-03-15 V3.11
+Correct picture adjustment settings altered in V3.10
+2015-03-13 V3.10
+New setting to close or hide Resume Media when 'X' clicked.
+Eliminate one second delay between button clicks.
+2014-12-29
+Settings table now has its own button in the [Play] menu.
+Allow copy as well as move when combining tables.
+Improve a few behaviors.
+2014-12-23
+Display and adjust picture keys for the whole table.
+2014-12-21
+A manual update will now also update 'Finished' media
+Setting to show bookmarked table entries in list of tables.
+Advance bookmark when bookmarked media set to 'Finished'.
+Setting to allow manual or automatic picture adjustment.
+2014-12-10 V3.00
+Version 3 with simpler handshaking with VLC.
+Bookmark feature added to keep track where last played.
+Play Bookmark/Unfinished/Table/Selection with Random/Loop options.
+2014-12-06
+Revert to version 2.40 due to unresolved issue in version 3.
+V2 main menu and other buttons improved.
+2014-12-05 V3.00
+Bookmark and autoplay features added.
+Table can be randomized manually or in autoplay.
+Main menu and other buttons improved.
+2014-11-26
+If media is playing, clicking [Import/Play] will now do a manual
+update of the playing position without stopping the media.
+Improved text-reading economy using patterns.
+2014-11-19
+Cosmetic changes only. Modified a few labels. More intuitive.
+'Keep Media' mark is now '*' instead of 'K'.
+2014-11-18 V2.40
+User settings (variables) are now adjusted in the dialog window.
+2014-11-11
+Removed the "instances/exclude/busy" complexity and issues, thus
+simplifying Resume Media and the dialog for the majority of users.
+2014-11-09 V2.30
+Moved user variables to top of download file for easy adjustment.
+New variables to adjust size of table dialog window.
+2014-10-28
+Set variable "simple = true" to force a single hidden table with no
+table dialog window. Control media and resume from the VLC playlist.
+2014-10-09
+Rewind 5 seconds when resuming (adjustable variable 'rewind').
+Selection no longer needed before entering Set/Delete mode.
+2014-07-03
+Set default media-just-started to 60 rather than 30 seconds.
+Set media completed flag to 'Finished' rather than 00:00:01.
+You can now reset media to 00:00:00 or set to 'Finished.'
+2014-06-18
+Amend the previous update to include the case where the media is paused.
+2014-06-16
+If the table dialog 'Play' button is clicked while media is playing, the media
+stop position will now update before selected entries are enqueued in VLC.
+One click can stop/enqueue or enqueue/play but not stop/enqueue/play.
+2014-06-12
+Allow media to remain in an excluded table when completed.
+Set X for normal exclude or K to keep media with time reset to 00:00:01.
+2014-06-11
+Disallow automatic resume if Resume Media is opened while media is
+playing, because the next stop event is undetectable in this case.
+Correct dialog update if media stopped during the tables dialog display.
+Correct open table option broken in last update.
+2014-06-09
+Refine the media detection to eliminate spurious updates.
+A few other minor improvements.
+2014-06-01
+Resume Media will now open even if all tables are busy or excluded.
+This should be rare, but it allows recovery if tables are orphaned.
+2014-05-31
+Message saying that busy tables cannot be combined.
+2014-05-30
+Correct multiple-selection delete and move operations.
+2014-05-25 V2.20
+Support for multiple tables. Entries can be sorted by time or name.
+2014-05-17 V2.10
+Add ability to rearrange table and to import the VLC playlist.
+----------------------------------------------------------------------
+
+Uses input_changed() and meta_changed() functions called by VLC
+to capture media name and stop position 
+The reliability of this program depends on VLC calling one of
+these functions with position data when media started/stopped
+--]]
+

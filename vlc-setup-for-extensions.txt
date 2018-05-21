@@ -1,0 +1,5 @@
+copy paste lua file in /usr/lib/vlc/lua/extensions folder
+
+to check installed extensinons Tools -> plugins and extensions -> active extensions
+
+to activate extension View -> (Click on Extension)
